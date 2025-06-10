@@ -1,0 +1,15 @@
+[project]
+name = "Abschlussprojekt-Lena-Ellena"
+version = "0.1.0"
+description = "Default template for PDM package"
+authors = [
+    {name = "Lena Kurzthaler", email = "kl4213@mci4me.at"},
+]
+dependencies = []
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
