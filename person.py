@@ -4,14 +4,20 @@ class Person:
     
     @staticmethod
     def load_person_data():
-        """A Function that knows where te person Database is and returns a Dictionary with the Persons"""
+        """Lädt die Personendaten aus der JSON-Datei 'data/person_db.json' und gibt sie als Liste von Dictionaries zurück.
+        Returns:
+            list: Liste von Personen-Dictionaries."""
         file = open("data/person_db.json")
         person_data = json.load(file)
         return person_data
 
     @staticmethod
     def get_person_list(person_data):
-        """A Function that takes the persons-dictionary and returns a list auf all person names"""
+        """Gibt eine Liste aller Personen-Namen in der Form "Nachname, Vorname" zurück.
+        Args:
+            person_data (list): Liste von Personen-Dictionaries.
+        Returns:
+            list: Liste von Strings mit Namen im Format "Nachname, Vorname"."""
         list_of_names = []
 
         for eintrag in person_data:

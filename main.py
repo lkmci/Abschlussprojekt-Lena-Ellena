@@ -10,8 +10,41 @@ from datetime import date
 import os
 import json
 
+# Zugangsdaten (z.B. aus sicherer Quelle, hier nur als Beispiel)
+USER_CREDENTIALS = {
+    "user1": "passwort"
+}
+
+# Login-Funktion
+def login():
+    st.title("🔐 Login")
+    username = st.text_input("Benutzername")
+    password = st.text_input("Passwort", type="password")
+    login_btn = st.button("Login")
+
+    if login_btn:
+        if username in USER_CREDENTIALS and USER_CREDENTIALS[username] == password:
+            st.session_state["logged_in"] = True
+            st.success("Login erfolgreich!")
+            st.rerun()
+        else:
+            st.error("Benutzername oder Passwort falsch.")
+
+# Login-Abfrage
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if not st.session_state["logged_in"]:
+    login()
+    st.stop()  #Stoppt die Ausführung, wenn nicht eingeloggt
+
 
 tab1, tab2, tab3, tab4 = st.tabs(["Versuchsperson", "EKG-Daten", "Versuchsperson anlegen", "Versuchsperson bearbeiten"])
+
+#Logout-Button
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
 
 with tab1:
     st.write("## Versuchsperson")
@@ -214,7 +247,7 @@ with tab4:
                         new_ekg_entry = {
                             "id": len(p.get("ekg_tests", [])) + 1,
                             "date": ekg_date,
-                            "result_link": ekg_path
+                            "file_path": ekg_path
                         }
 
                         if "ekg_tests" not in data[idx]:

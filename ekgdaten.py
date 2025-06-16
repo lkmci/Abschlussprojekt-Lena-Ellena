@@ -3,15 +3,54 @@ import pandas as pd
 import plotly.express as px
 
 class EKGdata:
+    """Klasse zur Verarbeitung und Analyse von EKG-Daten.
 
-## Konstruktor der Klasse soll die Daten einlesen
+    Diese Klasse lädt EKG-Daten aus einer Datei, die in einem Dictionary angegeben ist,
+    führt eine Downsampling-Operation durch, erkennt Spitzenwerte (Peaks),
+    schätzt die Herzfrequenz und stellt die Daten graphisch dar.
+
+    Attributes:
+        id (str): Eindeutige Kennung des EKG-Datensatzes.
+        date (str): Datum der Messung.
+        data (str): Pfad zur Datei mit den EKG-Messwerten (CSV mit Tabulatoren).
+        df (pandas.DataFrame): DataFrame mit den eingelesenen und downsampled Messwerten,
+                               enthält Spalten 'Messwerte in mV' und 'Zeit in ms'.
+
+    Methods:
+        __init__(ekg_dict):
+            Initialisiert die Klasse mit einem Dictionary, liest die EKG-Daten ein und downsamplet sie.
+        
+        load_by_id(ekg_list, ekg_id):
+            Statische Methode, die aus einer Liste von EKG-Dictionaries das mit der angegebenen ID lädt.
+
+        plot_time_series():
+            Gibt eine Plotly-Figur mit der Zeitreihe der EKG-Messwerte zurück.
+
+        find_peaks(threshold, respacing_factor):
+            Findet Spitzenwerte (Peaks) im Signal über einem bestimmten Schwellenwert
+            unter Verwendung eines Respacings (Downsampling).
+
+        estimate_hr(peaks):
+            Schätzt die durchschnittliche Herzfrequenz (in bpm) anhand der Zeitabstände zwischen Peaks.
+
+        Heart_Rate(peaks):
+            Gibt ein DataFrame mit den berechneten Herzfrequenzen und zugehörigen Zeitpunkten zurück.
+
+        plot_Hear_Rate(hr_df):
+            Statische Methode zur Visualisierung der Herzfrequenz als Zeitreihe."""
+
+## Konstruktor der Klasse soll die EKG-Daten einlesen
 
     def __init__(self, ekg_dict):
-        #pass
         self.id = ekg_dict["id"]
         self.date = ekg_dict["date"]
         self.data = ekg_dict["result_link"]
-        self.df = pd.read_csv(self.data, sep='\t', header=None, names=['Messwerte in mV','Zeit in ms',])
+        self.df = pd.read_csv(
+            self.data,
+            sep='\t',
+            header=None,
+            names=['Messwerte in mV', 'Zeit in ms'],
+            skiprows=lambda i: i % 10 != 0) # ↓ Downsampling: Nur jede 10. Zeile laden
 
     @staticmethod
     def load_by_id(ekg_list, ekg_id):

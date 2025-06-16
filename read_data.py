@@ -1,15 +1,17 @@
 import json
 
 def load_person_data():
-    """A Function that knows where the person database is and returns a dictionary with the persons
-    Eine Funktion die weis, wo die Personendaten sind und ein dictionary """
+    """Lädt Personendaten aus der JSON-Datei 'data/person_db.json' und gibt sie als Python-Objekt zurück.
+
+    Returns:
+        dict: Die geladenen Personendaten aus der JSON-Datei."""
     file = open("data/person_db.json")
     person_data = json.load(file)
     return person_data
 
 def get_person_list(person_data):
 
-    """A Function that takes the persons-dictionary and returns a list auf all person names"""
+    """Eine Funktion die das dict mit den geladenen Personendaten nimmt und es als Namensliste wiedergibt"""
     list_of_names = []
 
     for eintrag in person_data:
