@@ -5,9 +5,13 @@ from read_data import find_person_data_by_name
 from PIL import Image #paket zum anzeigen der bilder
 from person import Person
 from ekgdaten import EKGdata
+import plotly.express as px
+from datetime import date
+import os
+import json
 
 
-tab1, tab2 = st.tabs(["Versuchsperson", "EKG-Daten"])
+tab1, tab2, tab3, tab4 = st.tabs(["Versuchsperson", "EKG-Daten", "Versuchsperson anlegen", "Versuchsperson bearbeiten"])
 
 with tab1:
     st.write("## Versuchsperson")
@@ -47,30 +51,182 @@ with tab2:
     ekg_ids = [test['id'] for test in ekg_tests]
     selected_ekg_id = st.selectbox("Wähle eine EKG-Test-ID aus:", ekg_ids)
     ekg_dict = EKGdata.load_by_id(ekg_tests, selected_ekg_id)
-    ekg = EKGdata(ekg_dict)
 
-    #EKGtest daten
-    st.write("EKG-Test Datum: ", ekg.date)
-    zeit_ekg = len(ekg.df["Zeit in ms"])/60000 # in min
-    st.write("EKG-Test Länge in min: ", format(zeit_ekg, ".2f"))
+    if ekg_dict:
+        ekg = EKGdata(ekg_dict)
+
+        #EKGtest daten
+        st.write("EKG-Test Datum: ", ekg.date)
+        zeit_ekg = len(ekg.df["Zeit in ms"])/60000 # in min
+        st.write("EKG-Test Länge in min: ", format(zeit_ekg, ".2f"))
 
 
-    #Zeitstrahl für plot
-    start_ekg = ekg.df["Zeit in ms"][0]
-    selected_range = st.slider("Zeitbereich in ms wählen:", 0, 50000, (start_ekg,(start_ekg+10000)))
-    slider_start_time = selected_range[0]
-    slider_end_time = selected_range[1]
+        #Zeitstrahl für plot
+        start_ekg = ekg.df["Zeit in ms"][0]
+        selected_range = st.slider("Zeitbereich in ms wählen:", 0, 50000, (start_ekg,(start_ekg+10000)))
+        slider_start_time = selected_range[0]
+        slider_end_time = selected_range[1]
 
-    #plot der EKG-Daten
-    fig = ekg.plot_time_series()
-    ekg.fig.update_layout(xaxis = dict(range=[slider_start_time, slider_end_time]))
-    st.plotly_chart(fig, use_container_width=True)
+        #plot der EKG-Daten
+        fig = ekg.plot_time_series()
+        ekg.fig.update_layout(xaxis = dict(range=[slider_start_time, slider_end_time]))
+        st.plotly_chart(fig, use_container_width=True)
 
-    #Herzrate über die ges. Zeit
-    threshold = 340
-    respacing_factor = 2
-    peaks = ekg.find_peaks(threshold, respacing_factor)
-    st.write("Herzfrequenz basierend auf den Peaks in bpm: ", int(ekg.estimate_hr(peaks)))
+        #Herzrate über die ges. Zeit
+        threshold = 340
+        respacing_factor = 2
+        peaks = ekg.find_peaks(threshold, respacing_factor)
+        st.write("Herzfrequenz basierend auf den Peaks in bpm: ", int(ekg.estimate_hr(peaks)))
 
-    #Herzrate als plot
+        #Herzrate als plot
+        hr_df = ekg.Heart_Rate(peaks)
+        fig = EKGdata.plot_Hear_Rate(hr_df)
+        fig.update_layout(xaxis = dict(range=[slider_start_time, slider_end_time])) #Plot auch in der range von dem slider
+        st.plotly_chart(fig, use_container_width=True)
 
+    else:
+        st.write("Keine EKG-Daten vorhanden.")
+
+
+with tab3:
+    st.write("Personendaten anlegen")
+
+    with st.form("person_form"):
+        firstname = st.text_input("Vorname")
+        lastname = st.text_input("Nachname")
+        date_of_birth = st.number_input("Geburtsjahr", min_value=1925, max_value=2025, step=1, value=2000)
+        st.write("Bitte laden Sie vor dem Speichern ein Bild der Versuchsperson hoch.")
+
+        
+        data = load_person_data()
+
+        # IDs auslesen, falls "id" noch nicht existiert, auf 0 setzen
+        existing_ids = [person.get("id", 0) for person in data]
+        
+        # nächste ID bestimmen
+        next_id = max(existing_ids) + 1 if existing_ids else 1
+        #Bild und EKG-Daten hochladen
+        uploaded_file = st.file_uploader("Bild hochladen (nur JPG)", type=["jpg", "jpeg"])
+        ekg_txt_file = st.file_uploader("EKG-Daten optional hochladen (als .txt)", type=["txt"])
+
+        #Speicherbutton
+        submitted = st.form_submit_button("Speichern")
+
+        if submitted:
+            if firstname and lastname and date_of_birth and uploaded_file is not None:
+                
+
+                img_dir = "uploaded_file"
+                os.makedirs(img_dir, exist_ok=True)
+                # Bild unter Vorname_Nachname_ID.jpg speichern
+                img_path = os.path.join(img_dir, f"{firstname}_{lastname}_{next_id}.jpg")
+
+                with open(img_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+
+                  # Optional: EKG-Datei speichern
+                ekg_dir = "data/ekg"
+                os.makedirs(ekg_dir, exist_ok=True)
+                ekg_tests = []
+
+                if ekg_txt_file is not None:
+                    ekg_file_path = os.path.join(ekg_dir, f"ekg_{next_id}_1.txt")
+                    with open(ekg_file_path, "wb") as f:
+                        f.write(ekg_txt_file.getbuffer())
+
+                    # Beispielhafte EKG-Metadaten (anpassbar)
+                    ekg_tests.append({
+                        "id": f"ekg_{next_id}_1",
+                        "date": str(date.today()),
+                        "file_path": ekg_file_path
+                    })
+
+
+                new_person = {
+                    "id": next_id,
+                    "firstname": firstname,
+                    "lastname": lastname,
+                    "date_of_birth": date_of_birth,
+                    "picture_path": img_path,
+                }
+
+                # Alte Daten laden, neue Person anhängen und speichern
+                data.append(new_person)
+
+                # JSON-Datei speichern
+
+                with open("data/person_db.json", "w") as f:
+                    json.dump(data, f, indent=4)
+
+                st.success(f"{firstname} {lastname} wurde erfolgreich hinzugefügt!")
+
+                # Optional: Seite neu laden
+                st.rerun()
+            else:
+                st.error("Bitte fülle alle Pflichtfelder aus!")
+
+
+with tab4:
+    st.write("Versuchsperson bearbeiten")
+
+    #Bild bearbeiten
+    uploaded_file = st.file_uploader("Bild hochladen (nur JPG)", type=["jpg", "jpeg"])
+    #EKG-Daten hochladen
+    uploaded_ekg = st.file_uploader("Neue EKG-Datei hochladen (TXT)", type=["txt"])
+    ekg_date = date.today().strftime("%d.%m.%Y")  # Automatisches Datum
+
+    with st.form("edit_form"):
+        new_firstname = st.text_input("Vorname", value=person["firstname"])
+        new_lastname = st.text_input("Nachname", value=person["lastname"])
+        new_birthyear = st.number_input("Geburtsjahr", min_value=1925, max_value=2025, step=1, value=int(person["date_of_birth"]))
+        
+        
+
+        submitted = st.form_submit_button("Änderungen speichern")
+
+        if submitted:
+            # Lade alle Personendaten
+            data = load_person_data()
+
+            # Finde den Index der aktuellen Person
+            for idx, p in enumerate(data):
+                if p["id"] == person["id"]:
+                    data[idx]["firstname"] = new_firstname
+                    data[idx]["lastname"] = new_lastname
+                    data[idx]["date_of_birth"] = new_birthyear
+                    
+                    #Bild überspeichern
+                    if uploaded_file is not None:
+                        picture_path = data[idx]["picture_path"]  # alten Pfad behalten
+                        with open(picture_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+
+                     # EKG speichern
+                    if uploaded_ekg is not None:
+                        ekg_dir = "data/ekg_data"
+                        os.makedirs(ekg_dir, exist_ok=True)
+                        ekg_filename = f"{p['id']}_{ekg_date.replace('.', '-')}.txt"
+                        ekg_path = os.path.join(ekg_dir, ekg_filename)
+
+                        with open(ekg_path, "wb") as f:
+                            f.write(uploaded_ekg.getbuffer())
+
+                        new_ekg_entry = {
+                            "id": len(p.get("ekg_tests", [])) + 1,
+                            "date": ekg_date,
+                            "result_link": ekg_path
+                        }
+
+                        if "ekg_tests" not in data[idx]:
+                            data[idx]["ekg_tests"] = []
+
+                        data[idx]["ekg_tests"].append(new_ekg_entry)
+                    break
+
+            # Änderungen speichern
+            import json
+            with open("data/person_db.json", "w") as f:
+                json.dump(data, f, indent=4)
+
+            st.success("Daten wurden aktualisiert.")
+            st.rerun()

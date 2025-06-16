@@ -68,3 +68,24 @@ class EKGdata:
         avg_heart_rate = sum(heart_rates) / len(heart_rates) if heart_rates else 0
         return avg_heart_rate
     
+    #Herzrate als Plot
+    def Heart_Rate(self, peaks):
+        heart_rates = []
+        times = []
+        zeit_in_ms = self.df["Zeit in ms"]
+        for i in range(len(peaks)-1):
+            interval = zeit_in_ms.iloc[peaks[i+1]]-zeit_in_ms.iloc[peaks[i]]
+            if interval > 0:
+                bpm = 60000 / interval
+                heart_rates.append(bpm)
+                times.append(zeit_in_ms.iloc[peaks[i]])
+        hr_df = pd.DataFrame({
+        "Zeit in ms": times,
+        "Herzfrequenz in bpm": heart_rates})
+        return hr_df
+    
+    @staticmethod
+    def plot_Hear_Rate(hr_df):
+        fig = px.line(hr_df, x="Zeit in ms", y="Herzfrequenz in bpm")
+        return fig
+    
