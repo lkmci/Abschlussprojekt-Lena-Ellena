@@ -1,6 +1,8 @@
 import json
 import pandas as pd
 import plotly.express as px
+import numpy as np
+import plotly.graph_objects as go
 
 class EKGdata:
     """Klasse zur Verarbeitung und Analyse von EKG-Daten.
@@ -49,8 +51,8 @@ class EKGdata:
             self.data,
             sep='\t',
             header=None,
-            names=['Messwerte in mV', 'Zeit in ms'],
-            skiprows=lambda i: i % 10 != 0) # ↓ Downsampling: Nur jede 10. Zeile laden
+            names=['Messwerte in mV', 'Zeit in ms'])
+            #skiprows=lambda i: i % 10 != 0) # ↓ Downsampling: Nur jede 10. Zeile laden
 
     @staticmethod
     def load_by_id(ekg_list, ekg_id):
@@ -59,8 +61,19 @@ class EKGdata:
                 return ekg
         return None
     
-    def plot_time_series(self):
+    def plot_time_series(self,peaks):
+        peak_times = self.df.loc[peaks, "Zeit in ms"].tolist()
+        peak_values = self.df.loc[peaks, "Messwerte in mV"].tolist()
+
         self.fig = px.line(self.df, x="Zeit in ms", y="Messwerte in mV")
+        self.fig.add_trace(go.Scatter(
+            x=peak_times,
+            y=peak_values,
+            mode='markers',
+            marker=dict(color='red', size=8),
+            name='Peaks'))
+        zeit_start = self.df["Zeit in ms"][0]
+        self.fig.update_layout(xaxis=dict(range=[zeit_start, (zeit_start+30000)]))
         return self.fig
     
     def find_peaks(self, threshold, respacing_factor):
@@ -88,11 +101,8 @@ class EKGdata:
                 #if 0<= index <2000:
                     #peaks.append(current)
             
-            self.df.loc[:, "is_peak"] = False
-            self.df.loc[peaks, "is_peak"] = True
-            self.df.loc[:, "is_peak"] = False
-            self.df.loc[peaks, "is_peak"] = True
 
+            
         return peaks
     
     
@@ -128,3 +138,82 @@ class EKGdata:
         fig = px.line(hr_df, x="Zeit in ms", y="Herzfrequenz in bpm")
         return fig
     
+    @staticmethod
+    def Heartratevariation(peaks):
+        rr_intervals = np.diff(peaks)
+        rmssd = np.sqrt(np.mean(np.square(np.diff(rr_intervals))))
+        return rmssd
+
+    def detect_anomalies(self, peaks, alter, min_hr=40):
+
+        max_hr = 220 - alter
+        anomalies = []
+        zeit_in_ms = self.df["Zeit in ms"]
+
+        for i in range(len(peaks) - 1):
+            interval = zeit_in_ms.iloc[peaks[i+1]] - zeit_in_ms.iloc[peaks[i]]
+            if interval > 0:
+                bpm = 60000/interval
+                
+                if bpm < min_hr or bpm > max_hr:
+                    zeitpunkt = (zeit_in_ms.iloc[peaks[i+1]] + zeit_in_ms.iloc[peaks[i]])/2
+                    anomalies.append((zeitpunkt, bpm))
+
+        return anomalies
+    
+    # Kennzahlen extrahieren
+    def get_ekg_stats(ekg_obj):
+        peaks = ekg_obj.find_peaks(threshold=340, respacing_factor=2)
+        length_min = len(ekg_obj.df["Zeit in ms"]) / 60000
+        avg_hr = ekg_obj.estimate_hr(peaks)
+        hrv = ekg_obj.Heartratevariation(peaks)
+        return {
+            "Datum": ekg_obj.date,
+            "EKG-ID": ekg_obj.id,
+            "Testlänge (min)": round(length_min, 2),
+            "Ø Herzfrequenz (bpm)": int(avg_hr),
+            "HRV (ms)": int(hrv)}
+    
+    #Plot der durchschnittlichen Herzfrequenz mit Datum
+    def plot_HFV(df_vergleich):
+        # Stelle sicher, dass Datum als Typ datetime erkannt wird, da in unserem Falls als String ausgegeben
+        df_vergleich["Datum"] = pd.to_datetime(df_vergleich["Datum"])
+
+        # Erstelle den Plot
+        fig =  fig = px.line(
+            df_vergleich,
+            x="Datum",
+            y="HRV (ms)",
+            markers=True,
+            title="Herzfrequenzvariabilität (HRV) über Zeit",
+            labels={
+                "Datum": "Testdatum",
+                "HRV (ms)": "Herzfrequenzvariabilität (ms)"})
+        # Punkte
+        fig.add_trace(go.Scatter(
+            x=df_vergleich["Datum"],
+            y=df_vergleich["HRV (ms)"],
+            mode ='markers',
+            marker=dict(color='red', size=8),
+            name="HFV-Werte"))
+        #Nur die Testdaten als Ticks anzeigen
+        fig.update_xaxes(
+            tickformat="%d.%m.%Y",
+            tickmode='array',
+            tickvals=df_vergleich["Datum"])
+        return fig
+       
+
+if __name__ == "__main__":
+    print('Ja')
+    file = open("data/person_db.json")
+    person_data = json.load(file)
+    ekg_dict = person_data[0]["ekg_tests"][0]
+    ekg = EKGdata(ekg_dict)
+    peaks = ekg.find_peaks(340, 2)
+    avg_hr = ekg.estimate_hr(peaks)
+    print(avg_hr)
+    #fig = ekg.plot_time_series()
+    #fig.show()
+    rr_int = ekg.Heartratevariation(peaks)
+    print(rr_int)

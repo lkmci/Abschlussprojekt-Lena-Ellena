@@ -6,9 +6,17 @@ from PIL import Image #paket zum anzeigen der bilder
 from person import Person
 from ekgdaten import EKGdata
 import plotly.express as px
-from datetime import date
+from datetime import date,datetime
 import os
 import json
+import pandas as pd
+
+
+st.set_page_config(
+    page_title="Meine EKG-App",
+    layout="wide",  # <- das aktiviert den Vollbildmodus
+    initial_sidebar_state="collapsed"  # optional: Seitenleiste standardmäßig einklappen
+)
 
 # Zugangsdaten (z.B. aus sicherer Quelle, hier nur als Beispiel)
 USER_CREDENTIALS = {
@@ -39,7 +47,7 @@ if not st.session_state["logged_in"]:
     st.stop()  #Stoppt die Ausführung, wenn nicht eingeloggt
 
 
-tab1, tab2, tab3, tab4 = st.tabs(["Versuchsperson", "EKG-Daten", "Versuchsperson anlegen", "Versuchsperson bearbeiten"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Versuchsperson", "EKG-Daten","Nachrichten", "Versuchsperson anlegen", "Versuchsperson bearbeiten" ])
 
 #Logout-Button
 if st.button("Logout"):
@@ -73,7 +81,12 @@ with tab1:
     #Versuchspersondaten
     my_current_person = Person(person)
     st.write("Name: ", my_current_person.firstname, my_current_person.lastname)
-    st.write("Geburtsjahr: ", my_current_person.date_of_birth)
+    
+    geburtstag = datetime.strptime(my_current_person.date_of_birth, "%d.%m.%Y").date()
+    heute = date.today()
+    # Alter berechnen
+    alter = heute.year - geburtstag.year - ((heute.month, heute.day) < (geburtstag.month, geburtstag.day))
+    st.write("Geburtsjahr: ", alter)
 
 
 with tab2:
@@ -101,7 +114,10 @@ with tab2:
         slider_end_time = selected_range[1]
 
         #plot der EKG-Daten
-        fig = ekg.plot_time_series()
+        threshold = 340
+        respacing_factor = 2
+        peaks = ekg.find_peaks(threshold, respacing_factor)
+        fig = ekg.plot_time_series(peaks)
         ekg.fig.update_layout(xaxis = dict(range=[slider_start_time, slider_end_time]))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -116,18 +132,70 @@ with tab2:
         fig = EKGdata.plot_Hear_Rate(hr_df)
         fig.update_layout(xaxis = dict(range=[slider_start_time, slider_end_time])) #Plot auch in der range von dem slider
         st.plotly_chart(fig, use_container_width=True)
+        
+        #Herzfrequenzvariablität
+        st.write("Herzfrequenzvariablität in ms: ", int(ekg.Heartratevariation(peaks)))
+       
+        #Vergleich bei mehreren EGK-Daten
+        st.write("Wähle beliebig viele EKGs zum Vergleich aus:")
+
+        # Multiselect erlaubt Auswahl mehrerer IDs
+        selected_ekg_ids = st.multiselect("Wähle EKG-IDs:", ekg_ids)
+
+        # Wenn mindestens eine EKG-ID ausgewählt wurde
+        if selected_ekg_ids:
+            ekg_stat_list = []
+
+            for ekg_id in selected_ekg_ids:
+                ekg_dict1 = EKGdata.load_by_id(ekg_tests, ekg_id)
+                ekg1 = EKGdata(ekg_dict1)
+                ekg_stat_list.append(EKGdata.get_ekg_stats(ekg1))
+
+            df_vergleich = pd.DataFrame(ekg_stat_list)
+
+            st.subheader("Vergleich mehrerer EKG-Tests")
+            st.dataframe(df_vergleich)
+
+            #HFV als Plot über die Zeit
+            fig = EKGdata.plot_HFV(df_vergleich)
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.info("Bitte mindestens einen EKG-Test auswählen.")
+
+        
+
 
     else:
         st.write("Keine EKG-Daten vorhanden.")
 
 
 with tab3:
+    if ekg_dict:
+        #Anomaliererkennung
+        anomalies = ekg.detect_anomalies(peaks, alter)
+
+        if anomalies:
+            for zeitpunkt, bpm in anomalies:
+                st.write(f"Auffälligkeit bei {zeitpunkt:.0f} ms: {bpm:.1f} BPM")
+        else:
+            st.write("Keine Anomalien vorhanden.")
+
+    else:
+        st.write("Keine EKG-Daten vorhanden.")
+
+
+
+with tab4:
     st.write("Personendaten anlegen")
+    
+    min_date = date(1900, 1, 1)
+    max_date = date.today()
 
     with st.form("person_form"):
         firstname = st.text_input("Vorname")
         lastname = st.text_input("Nachname")
-        date_of_birth = st.number_input("Geburtsjahr", min_value=1925, max_value=2025, step=1, value=2000)
+        date_of_birth = st.date_input("Geburtsjahr", value=max_date, min_value=min_date, max_value=max_date)
         st.write("Bitte laden Sie vor dem Speichern ein Bild der Versuchsperson hoch.")
 
         
@@ -179,7 +247,7 @@ with tab3:
                     "id": next_id,
                     "firstname": firstname,
                     "lastname": lastname,
-                    "date_of_birth": date_of_birth,
+                    "date_of_birth": date_of_birth.strftime("%d.%m.%Y"),
                     "picture_path": img_path,
                 }
 
@@ -199,7 +267,7 @@ with tab3:
                 st.error("Bitte fülle alle Pflichtfelder aus!")
 
 
-with tab4:
+with tab5:
     st.write("Versuchsperson bearbeiten")
 
     #Bild bearbeiten
@@ -208,10 +276,12 @@ with tab4:
     uploaded_ekg = st.file_uploader("Neue EKG-Datei hochladen (TXT)", type=["txt"])
     ekg_date = date.today().strftime("%d.%m.%Y")  # Automatisches Datum
 
+
+
     with st.form("edit_form"):
         new_firstname = st.text_input("Vorname", value=person["firstname"])
         new_lastname = st.text_input("Nachname", value=person["lastname"])
-        new_birthyear = st.number_input("Geburtsjahr", min_value=1925, max_value=2025, step=1, value=int(person["date_of_birth"]))
+        new_birthday = st.date_input("Geburtstag", value=geburtstag, min_value=min_date, max_value=max_date)
         
         
 
@@ -226,7 +296,7 @@ with tab4:
                 if p["id"] == person["id"]:
                     data[idx]["firstname"] = new_firstname
                     data[idx]["lastname"] = new_lastname
-                    data[idx]["date_of_birth"] = new_birthyear
+                    data[idx]["date_of_birth"] = new_birthday.strftime("%d.%m.%Y")
                     
                     #Bild überspeichern
                     if uploaded_file is not None:

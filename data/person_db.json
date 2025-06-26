@@ -1,7 +1,7 @@
 [
     {
         "id": 1,
-        "date_of_birth": 1989,
+        "date_of_birth": "12.04.1989",
         "firstname": "Julian",
         "lastname": "Huber",
         "picture_path": "data/pictures/tb.jpg",
@@ -20,7 +20,7 @@
     },
     {
         "id": 2,
-        "date_of_birth": 1967,
+        "date_of_birth": "05.03.1967",
         "firstname": "Yannic",
         "lastname": "Heyer",
         "picture_path": "data/pictures/js.jpg",
@@ -34,7 +34,7 @@
     },
     {
         "id": 3,
-        "date_of_birth": 1973,
+        "date_of_birth": "26.01.1973",
         "firstname": "Yunus",
         "lastname": "Schmirander",
         "picture_path": "data/pictures/bl.jpg",
