@@ -6,41 +6,6 @@ import plotly.graph_objects as go
 from scipy.signal import find_peaks
 
 class EKGdata:
-    """Klasse zur Verarbeitung und Analyse von EKG-Daten.
-
-    Diese Klasse lädt EKG-Daten aus einer Datei, die in einem Dictionary angegeben ist,
-    führt eine Downsampling-Operation durch, erkennt Spitzenwerte (Peaks),
-    schätzt die Herzfrequenz und stellt die Daten graphisch dar.
-
-    Attributes:
-        id (str): Eindeutige Kennung des EKG-Datensatzes.
-        date (str): Datum der Messung.
-        data (str): Pfad zur Datei mit den EKG-Messwerten (CSV mit Tabulatoren).
-        df (pandas.DataFrame): DataFrame mit den eingelesenen und downsampled Messwerten,
-                               enthält Spalten 'Messwerte in mV' und 'Zeit in ms'.
-
-    Methods:
-        __init__(ekg_dict):
-            Initialisiert die Klasse mit einem Dictionary, liest die EKG-Daten ein und downsamplet sie.
-        
-        load_by_id(ekg_list, ekg_id):
-            Statische Methode, die aus einer Liste von EKG-Dictionaries das mit der angegebenen ID lädt.
-
-        plot_time_series():
-            Gibt eine Plotly-Figur mit der Zeitreihe der EKG-Messwerte zurück.
-
-        find_peaks(threshold, respacing_factor):
-            Findet Spitzenwerte (Peaks) im Signal über einem bestimmten Schwellenwert
-            unter Verwendung eines Respacings (Downsampling).
-
-        estimate_hr(peaks):
-            Schätzt die durchschnittliche Herzfrequenz (in bpm) anhand der Zeitabstände zwischen Peaks.
-
-        Heart_Rate(peaks):
-            Gibt ein DataFrame mit den berechneten Herzfrequenzen und zugehörigen Zeitpunkten zurück.
-
-        plot_Hear_Rate(hr_df):
-            Statische Methode zur Visualisierung der Herzfrequenz als Zeitreihe."""
 
 ## Konstruktor der Klasse soll die EKG-Daten einlesen
 
@@ -57,12 +22,27 @@ class EKGdata:
 
     @staticmethod
     def load_by_id(ekg_list, ekg_id):
+        """Lädt ein EKG-Objekt aus einer Liste anhand der EKG-ID.
+
+            Input:
+            ekg_list (list): Liste von EKG-Dictionaries.
+            ekg_id (int or str): Gesuchte EKG-ID.
+
+            Output:
+            dict or None: EKG-Dictionary mit passender ID oder None, falls nicht gefunden."""
         for ekg in ekg_list:
             if ekg["id"] == int(ekg_id):
                 return ekg
         return None
     
     def plot_time_series(self,peaks, anomalies=None):
+        """Zeichnet die Zeitreihe der Messwerte mit Peaks und optionalen Anomalien als farbige Bereiche.
+
+            Input:
+            peaks und anomalien für die Dastellung
+
+            Output:
+            Plot mit Zeitreihe, Peaks und Anomalien-Hervorhebung."""
         peak_times = self.df.loc[peaks, "Zeit in ms"].tolist()
         peak_values = self.df.loc[peaks, "Messwerte in mV"].tolist()
 
@@ -88,6 +68,13 @@ class EKGdata:
         return self.fig
     
     def find_peaks(self, distance=200, height=340):
+        """Findet Peaks im EKG-Signal basierend auf Abstand, Höhe und Prominenz.
+
+            Input:
+            distance (int, optional): Minimale Distanz zwischen Peaks.
+            height (int, optional): Minimale Höhe der Peaks.
+
+            Output:gibt die Indizes der gefundenen Peaks wieder"""
         signal = self.df['Messwerte in mV']
         peaks, _ = find_peaks(signal, distance=distance, height=height, prominence=30)
         self.peaks = peaks
@@ -95,6 +82,13 @@ class EKGdata:
     
     
     def estimate_hr(self, peaks):
+        """Schätzt die durchschnittliche Herzfrequenz (BPM) aus den Peaks.
+
+            Input:
+            peaks: Indizes der Peaks.
+
+            Output:
+            Durchschnittliche Herzfrequenz in bpm."""
         heart_rates = []
         zeit_in_ms = self.df["Zeit in ms"]
         for i in range(len(peaks)-1):
@@ -107,6 +101,13 @@ class EKGdata:
     
     #Herzrate als Plot
     def Heart_Rate(self, peaks):
+        """Erzeugt ein DataFrame mit Herzfrequenzwerten und zugehörigen Zeitpunkten basierend auf Peaks.
+
+            Input:
+            peaks: Indizes der Peaks.
+
+            Output:
+            DataFrame mit Spalten "Zeit in ms" und "Herzfrequenz in bpm"."""
         heart_rates = []
         times = []
         zeit_in_ms = self.df["Zeit in ms"]
@@ -123,16 +124,40 @@ class EKGdata:
     
     @staticmethod
     def plot_Hear_Rate(hr_df):
+        """Erstellt einen Linienplot der Herzfrequenz über die Zeit.
+
+            Inputs:
+            hr_df : DataFrame mit Herzfrequenzwerten und Zeitpunkten.
+
+            Output:
+            Plot des Herzfrequenzverlaufs."""
         fig = px.line(hr_df, x="Zeit in ms", y="Herzfrequenz in bpm")
         return fig
     
     @staticmethod
     def Heartratevariation(peaks, zeit_in_ms):
+        """Berechnet die Herzfrequenzvariabilität (RMSSD) aus den RR-Intervallen.
+
+            Input:
+            peaks: Indizes der Peaks.
+            zeit_in_ms: Zeitpunkte der Messungen.
+
+            Output:
+            RMSSD-Wert (ms) als Maß der Herzfrequenzvariabilität."""
         rr_intervals = np.diff(zeit_in_ms.iloc[peaks])
         rmssd = np.sqrt(np.mean(np.square(np.diff(rr_intervals))))
         return rmssd
 
     def detect_anomalies(self, peaks, alter, min_hr=40):
+        """Erkennt Anomalien basierend auf Herzfrequenzgrenzen (min/max bpm).
+
+            Input:
+            peaks: Indizes der Peaks.
+            alter: Alter der Person für max Herzfrequenzberechnung.
+            min_hr: Minimale Herzfrequenz.
+
+            Output:
+            Liste von (Zeitpunkt, bpm) für erkannte Anomalien."""
 
         max_hr = 220 - alter
         anomalies = []
@@ -151,6 +176,13 @@ class EKGdata:
     
     # Kennzahlen extrahieren
     def get_ekg_stats(ekg_obj):
+        """Extrahiert Kennzahlen aus einem EKG-Objekt um sie zu vergleichen.
+
+            Input:
+            ekg_obj: Instanz mit Methoden find_peaks, estimate_hr, Heartratevariation.
+
+            Output:
+            Dictionary mit Datum, EKG-ID, Testlänge, durchschnittlicher Herzfrequenz und Herzfrequenzvariablität."""
         peaks = ekg_obj.find_peaks()
         length_min = len(ekg_obj.df["Zeit in ms"]) / 60000
         avg_hr = ekg_obj.estimate_hr(peaks)
@@ -164,6 +196,13 @@ class EKGdata:
     
     #Plot der durchschnittlichen Herzfrequenz mit Datum
     def plot_HFV(df_vergleich):
+        """Erstellt einen Plot der Herzfrequenzvariabilität (HRV) über die Zeit.
+
+            Input:
+            df_vergleich: DataFrame mit Spalten "Datum" und "HRV (ms)".
+
+            Output:
+            Plot des HRV-Verlaufs bei mehreren EKG-Daten."""
         # Stelle sicher, dass Datum als Typ datetime erkannt wird, da in unserem Falls als String ausgegeben
         df_vergleich["Datum"] = pd.to_datetime(df_vergleich["Datum"])
 
