@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 import plotly.graph_objects as go
+from scipy.signal import find_peaks
 
 class EKGdata:
     """Klasse zur Verarbeitung und Analyse von EKG-Daten.
@@ -57,11 +58,11 @@ class EKGdata:
     @staticmethod
     def load_by_id(ekg_list, ekg_id):
         for ekg in ekg_list:
-            if ekg["id"] == ekg_id:
+            if ekg["id"] == int(ekg_id):
                 return ekg
         return None
     
-    def plot_time_series(self,peaks):
+    def plot_time_series(self,peaks, anomalies=None):
         peak_times = self.df.loc[peaks, "Zeit in ms"].tolist()
         peak_values = self.df.loc[peaks, "Messwerte in mV"].tolist()
 
@@ -74,35 +75,22 @@ class EKGdata:
             name='Peaks'))
         zeit_start = self.df["Zeit in ms"][0]
         self.fig.update_layout(xaxis=dict(range=[zeit_start, (zeit_start+30000)]))
+        if anomalies:
+            anomalies_times = [a[0] for a in anomalies]
+            for t in anomalies_times:
+                self.fig.add_vrect(
+                    x0 = t-100,
+                    x1=t +100,
+                    fillcolor="orange",
+                    opacity=0.3,
+                    layer="below",
+                    line_width=0)
         return self.fig
     
-    def find_peaks(self, threshold, respacing_factor):
-
-
-        # Respace the series
-        series = self.df["Messwerte in mV"].iloc[::respacing_factor]
-        
-
-        # Filter the series
-        series = series[series > threshold]
-
-        peaks = []
-        last = 0
-        current = 0
-        next = 0
-
-        for index, row in series.items():
-            last = current
-            current = next
-            next = row
-
-            if last < current and current > next and current > threshold:
-                peaks.append(index - respacing_factor)
-                #if 0<= index <2000:
-                    #peaks.append(current)
-            
-
-            
+    def find_peaks(self, distance=200, height=340):
+        signal = self.df['Messwerte in mV']
+        peaks, _ = find_peaks(signal, distance=distance, height=height, prominence=30)
+        self.peaks = peaks
         return peaks
     
     
@@ -139,8 +127,8 @@ class EKGdata:
         return fig
     
     @staticmethod
-    def Heartratevariation(peaks):
-        rr_intervals = np.diff(peaks)
+    def Heartratevariation(peaks, zeit_in_ms):
+        rr_intervals = np.diff(zeit_in_ms.iloc[peaks])
         rmssd = np.sqrt(np.mean(np.square(np.diff(rr_intervals))))
         return rmssd
 
@@ -163,10 +151,10 @@ class EKGdata:
     
     # Kennzahlen extrahieren
     def get_ekg_stats(ekg_obj):
-        peaks = ekg_obj.find_peaks(threshold=340, respacing_factor=2)
+        peaks = ekg_obj.find_peaks()
         length_min = len(ekg_obj.df["Zeit in ms"]) / 60000
         avg_hr = ekg_obj.estimate_hr(peaks)
-        hrv = ekg_obj.Heartratevariation(peaks)
+        hrv = ekg_obj.Heartratevariation(peaks, ekg_obj.df["Zeit in ms"])
         return {
             "Datum": ekg_obj.date,
             "EKG-ID": ekg_obj.id,

@@ -45,12 +45,5 @@
                 "result_link": "data/ekg_data/03_Ruhe.txt"
             }
         ]
-    },
-    {
-        "id": 4,
-        "firstname": "Lena",
-        "lastname": "Irgendetwo",
-        "date_of_birth": 2000,
-        "picture_path": "uploaded_file\\Lena_Irgendetwas_4.jpg"
     }
 ]
