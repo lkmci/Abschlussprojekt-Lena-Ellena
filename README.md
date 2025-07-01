@@ -6,14 +6,14 @@ Dies ist eine interaktive Webanwendung zur Verwaltung und Visualisierung von EKG
 
 ---
 ## Funktionen
-🔐 Login-System zur Zugriffsbeschränkung
-👤 Verwaltung von Versuchspersonen inkl. Bild und Geburtsdatum
-📈 Analyse und Visualisierung von EKG-Daten
+- 🔐 Login-System zur Zugriffsbeschränkung
+- 👤 Verwaltung von Versuchspersonen inkl. Bild und Geburtsdatum
+- 📈 Analyse und Visualisierung von EKG-Daten
     - Herzfrequenz
     - Herzfrequenzvariabilität (HRV)
     - Anomalieerkennung
-📊 Vergleich mehrerer EKG-Datensätze
-📝 Hinzufügen und Bearbeiten von Versuchspersonen und deren EKG-Daten
+- 📊 Vergleich mehrerer EKG-Datensätze
+- 📝 Hinzufügen und Bearbeiten von Versuchspersonen und deren EKG-Daten
 
 ---
 ## Installation
