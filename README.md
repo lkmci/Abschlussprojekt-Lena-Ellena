@@ -28,29 +28,28 @@ Voraussetzung:
 USER_CREDENTIALS = {
     "user1": "passwort"
 }
- Tabs im Überblick
 
  ---
- ## Überblick der Tabs
+ ## Tabs im Überblick 
 1. Versuchsperson
-- Auswahl einer gespeicherten Person
-- Anzeige von Bild, Name, Alter
+    - Auswahl einer gespeicherten Person
+    - Anzeige von Bild, Name, Alter
 
 2. EKG-Daten
-- Auswahl und Visualisierung von EKG-Daten
-- Anzeige von Herzfrequenz, HRV, Anomalien
-- Vergleich mehrerer EKGs
+    - Auswahl und Visualisierung von EKG-Daten
+    - Anzeige von Herzfrequenz, HRV, Anomalien
+    - Vergleich mehrerer EKGs
 
 3. Nachrichten
-- Auflistung der erkannten Anomalien für eine Person
+    - Auflistung der erkannten Anomalien für eine Person
 
 4. Versuchsperson anlegen
-- Eingabe von Name, Geburtsdatum
-- Hochladen eines Bilds und optional EKG-Dateien
+    - Eingabe von Name, Geburtsdatum
+    - Hochladen eines Bilds und optional EKG-Dateien
 
 5. Versuchsperson bearbeiten
-- Änderung von Personendaten
-- Hochladen neuer Bilder oder EKGs
+    - Änderung von Personendaten
+    - Hochladen neuer Bilder oder EKGs
 
 ---
 ## Kontakt 
